@@ -1,18 +1,20 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Post, Body } from '@nestjs/common';
+import { CreateLogDto } from './dto/create-log.dto';
+import { LogsService } from './logs.service';
 
 @Controller('logs')
 export class LogsController {
+  constructor(private readonly logsService: LogsService) {}
+
   @Get()
   findAll() {
-    // simple fake response for first test
-    return [
-      {
-        id: '1',
-        serviceName: 'demo-service',
-        level: 'INFO',
-        message: 'Log aggregator is alive!',
-        timestamp: new Date().toISOString(),
-      },
-    ];
+    // call service to fetch logs
+    return this.logsService.findAll();
+  }
+
+  @Post()
+  create(@Body() body: CreateLogDto) {
+    // call service to create a new log entry
+    return this.logsService.create(body);
   }
 }
