@@ -5,15 +5,15 @@ import { randomUUID } from 'crypto';
 
 @Injectable()
 export class LogsService {
-  // in-memory storage for logs (temporary)
+  // In-memory log storage (temporary)
   private logs: LogResponseDto[] = [];
 
-  // returns all logs
+  // Returns all logs
   findAll(): LogResponseDto[] {
     return this.logs;
   }
 
-  // creates a new log entry
+  // Creates a new log entry
   create(dto: CreateLogDto): LogResponseDto {
     const log: LogResponseDto = {
       id: randomUUID(),
