@@ -10,14 +10,14 @@ export class LogsController {
   constructor(private readonly logsService: LogsService) {}
 
   @Get()
-  findAll(): LogResponseDto[] {
-    // Delegate to service to retrieve all logs
+  async findAll(): Promise<LogResponseDto[]> {
+    // Delegate to service to retrieve all logs from Elasticsearch
     return this.logsService.findAll();
   }
 
   @Post()
-  create(@Body() body: CreateLogDto): LogResponseDto {
-    // Delegate to service to create a new log entry
+  async create(@Body() body: CreateLogDto): Promise<LogResponseDto> {
+    // Delegate to service to create and index a new log entry
     return this.logsService.create(body);
   }
 }
