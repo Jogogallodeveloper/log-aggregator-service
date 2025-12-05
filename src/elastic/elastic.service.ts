@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Client } from '@elastic/elasticsearch';
+import { LogResponseDto } from '../logs/dto/log-response.dto';
 
 @Injectable()
 export class ElasticService {
@@ -32,7 +33,7 @@ export class ElasticService {
     }
   }
 
-  // Ensure that the index exists
+  // Ensure that the index exists with the correct mapping
   async ensureIndex(): Promise<void> {
     const exists = await this.client.indices.exists({ index: this.indexName });
 
@@ -55,5 +56,34 @@ export class ElasticService {
     } else {
       this.logger.log(`Index already exists: ${this.indexName}`);
     }
+  }
+
+  // Index a single log document in Elasticsearch
+  async indexLog(log: LogResponseDto): Promise<void> {
+    this.logger.log(`Indexing log in ES: ${JSON.stringify(log)}`);
+    await this.client.index({
+      index: this.indexName,
+      id: log.id,
+      document: log,
+    });
+
+    // Refresh index for immediate visibility in dev environment
+    await this.client.indices.refresh({ index: this.indexName });
+  }
+
+  // Search all logs (later we will add filters and pagination)
+  async searchAllLogs(): Promise<LogResponseDto[]> {
+    const response = await this.client.search<LogResponseDto>({
+      index: this.indexName,
+      size: 100,
+      sort: [{ timestamp: { order: 'desc' } }],
+      query: {
+        match_all: {},
+      },
+    });
+
+    return response.hits.hits
+      .map((hit) => hit._source)
+      .filter((doc): doc is LogResponseDto => doc !== undefined);
   }
 }

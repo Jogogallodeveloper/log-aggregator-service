@@ -13,7 +13,6 @@ export class LogsModule implements OnModuleInit {
   constructor(private readonly elasticService: ElasticService) {}
 
   async onModuleInit(): Promise<void> {
-    // Ensure Elasticsearch index is created on startup
     await this.elasticService.ping();
     await this.elasticService.ensureIndex();
   }
