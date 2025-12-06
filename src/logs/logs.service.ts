@@ -3,6 +3,8 @@ import { CreateLogDto } from './dto/create-log.dto';
 import { LogResponseDto } from './dto/log-response.dto';
 import { randomUUID } from 'crypto';
 import { ElasticService } from '../elastic/elastic.service';
+import { GetLogsQueryDto } from './dto/get-logs-query.dto';
+import { PaginatedLogsResponseDto } from './dto/paginated-logs-response.dto';
 
 @Injectable()
 export class LogsService {
@@ -10,12 +12,6 @@ export class LogsService {
   private logs: LogResponseDto[] = [];
 
   constructor(private readonly elasticService: ElasticService) {}
-
-  // Returns all logs from Elasticsearch
-  async findAll(): Promise<LogResponseDto[]> {
-    // Main source of truth: Elasticsearch
-    return this.elasticService.searchAllLogs();
-  }
 
   // Creates a new log entry and sends it to Elasticsearch
   async create(dto: CreateLogDto): Promise<LogResponseDto> {
@@ -34,5 +30,23 @@ export class LogsService {
     await this.elasticService.indexLog(log);
 
     return log;
+  }
+
+  // Find logs with optional filters and pagination
+  async findAll(query: GetLogsQueryDto): Promise<PaginatedLogsResponseDto> {
+    // Ensure default values
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+
+    const result = await this.elasticService.searchLogs({
+      serviceName: query.serviceName,
+      level: query.level,
+      startDate: query.startDate,
+      endDate: query.endDate,
+      page,
+      pageSize,
+    });
+
+    return result;
   }
 }

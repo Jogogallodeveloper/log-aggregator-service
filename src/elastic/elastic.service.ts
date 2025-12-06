@@ -3,6 +3,16 @@ import { ConfigService } from '@nestjs/config';
 import { Client } from '@elastic/elasticsearch';
 import { LogResponseDto } from '../logs/dto/log-response.dto';
 
+// Parameters used to search logs with filters and pagination
+interface SearchLogsParams {
+  serviceName?: string;
+  level?: string;
+  startDate?: string;
+  endDate?: string;
+  page: number;
+  pageSize: number;
+}
+
 @Injectable()
 export class ElasticService {
   private readonly logger = new Logger(ElasticService.name);
@@ -37,6 +47,8 @@ export class ElasticService {
   async ensureIndex(): Promise<void> {
     const exists = await this.client.indices.exists({ index: this.indexName });
 
+    // Depending on ES client version, "exists" may be boolean or response object.
+    // Adjust here if necessary.
     if (!exists) {
       this.logger.log(`Creating index: ${this.indexName}`);
 
@@ -71,19 +83,116 @@ export class ElasticService {
     await this.client.indices.refresh({ index: this.indexName });
   }
 
-  // Search all logs (later we will add filters and pagination)
-  async searchAllLogs(): Promise<LogResponseDto[]> {
+  // Search logs using filters and pagination
+  // This is the main method that the service/controller will consume
+  async searchLogs(params: SearchLogsParams): Promise<{
+    data: LogResponseDto[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> {
+    const { serviceName, level, startDate, endDate, page, pageSize } = params;
+
+    // Calculate "from" for pagination
+    const from = (page - 1) * pageSize;
+
+    // Build filter conditions
+    const filter: any[] = [];
+
+    if (serviceName) {
+      filter.push({
+        term: {
+          serviceName: serviceName,
+        },
+      });
+    }
+
+    if (level) {
+      filter.push({
+        term: {
+          level: level,
+        },
+      });
+    }
+
+    if (startDate || endDate) {
+      const range: Record<string, string> = {};
+      if (startDate) {
+        range.gte = startDate;
+      }
+      if (endDate) {
+        range.lte = endDate;
+      }
+
+      filter.push({
+        range: {
+          timestamp: range,
+        },
+      });
+    }
+
+    // If there are filters, use bool/filter, otherwise match_all
+    const query =
+      filter.length > 0
+        ? {
+            bool: {
+              filter,
+            },
+          }
+        : {
+            match_all: {},
+          };
+
+    this.logger.debug(
+      `Searching logs with params: ${JSON.stringify({
+        serviceName,
+        level,
+        startDate,
+        endDate,
+        page,
+        pageSize,
+      })}`,
+    );
+
     const response = await this.client.search<LogResponseDto>({
       index: this.indexName,
-      size: 100,
+      from,
+      size: pageSize,
       sort: [{ timestamp: { order: 'desc' } }],
-      query: {
-        match_all: {},
-      },
+      query,
     });
 
-    return response.hits.hits
+    const hits = response.hits.hits ?? [];
+
+    const total =
+      typeof response.hits.total === 'number'
+        ? response.hits.total
+        : (response.hits.total?.value ?? 0);
+
+    const data = hits
       .map((hit) => hit._source)
       .filter((doc): doc is LogResponseDto => doc !== undefined);
+
+    return {
+      data,
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  // Legacy/simple method kept for backward compatibility
+  // Now it just calls searchLogs with default pagination and no filters
+  async searchAllLogs(): Promise<LogResponseDto[]> {
+    const result = await this.searchLogs({
+      serviceName: undefined,
+      level: undefined,
+      startDate: undefined,
+      endDate: undefined,
+      page: 1,
+      pageSize: 100,
+    });
+
+    return result.data;
   }
 }
