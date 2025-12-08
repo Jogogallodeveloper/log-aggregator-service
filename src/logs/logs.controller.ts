@@ -1,8 +1,4 @@
-// src/logs/logs.controller.ts
 import { Controller, Get, Post, Body, UseGuards, Query } from '@nestjs/common';
-import { LogsService } from './logs.service';
-import { CreateLogDto } from './dto/create-log.dto';
-import { GetLogsQueryDto } from './dto/get-logs-query.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -11,9 +7,12 @@ import {
   ApiOkResponse,
   ApiBody,
 } from '@nestjs/swagger';
+import { LogsService } from './logs.service';
+import { CreateLogDto } from './dto/create-log.dto';
+import { GetLogsQueryDto } from './dto/get-logs-query.dto';
 import { PaginatedLogsResponseDto } from './dto/paginated-logs-response.dto';
 import { LogResponseDto } from './dto/log-response.dto';
-import { ApiKeyGuard } from 'src/common/guards/api-key.guard';
+import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
 @ApiTags('logs')
 @ApiSecurity('api-key')

@@ -1,13 +1,29 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 import { ApiKeyGuard } from './api-key.guard';
 import { ExecutionContext } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-// Helper to build a mock ExecutionContext for HTTP requests
+// Helper to build a mock HTTP ExecutionContext
 function createMockExecutionContext(headers: Record<string, string>): ExecutionContext {
+  const request = {
+    headers,
+    // Express-like "header" function
+    header: (name: string) => {
+      const lower = name.toLowerCase();
+
+      const normalizedHeaders = Object.keys(headers).reduce<Record<string, string>>((acc, key) => {
+        acc[key.toLowerCase()] = headers[key];
+        return acc;
+      }, {});
+
+      return normalizedHeaders[lower];
+    },
+  };
+
   const httpContext = {
-    // Only "headers" are relevant for this guard
-    getRequest: () => ({ headers }),
-    // These methods are required by the interface but not used by the guard
+    getRequest: () => request,
     getResponse: () => ({}),
     getNext: () => ({}),
   };
@@ -16,17 +32,16 @@ function createMockExecutionContext(headers: Record<string, string>): ExecutionC
     switchToHttp: () => httpContext,
     switchToRpc: () => ({}),
     switchToWs: () => ({}),
-    getArgByIndex: () => null,
+    getArgByIndex: () => undefined,
     getArgs: () => [],
     getClass: () => class Dummy {},
     getHandler: () =>
       function handler() {
-        // no-op handler
+        // no-op
       },
     getType: () => 'http',
   };
 
-  // We cast once here, in a controlled way, only for test purposes
   return context as unknown as ExecutionContext;
 }
 
@@ -35,7 +50,7 @@ describe('ApiKeyGuard', () => {
   let configService: ConfigService;
 
   beforeEach(() => {
-    // Strongly typed mock for ConfigService.get
+    // Mock only the "get" method that the guard uses
     const mockConfig: Pick<ConfigService, 'get'> = {
       get: (key: string) => {
         if (key === 'API_KEY') {
@@ -45,9 +60,7 @@ describe('ApiKeyGuard', () => {
       },
     };
 
-    // Safe cast for constructor compatibility
     configService = mockConfig as ConfigService;
-
     guard = new ApiKeyGuard(configService);
   });
 

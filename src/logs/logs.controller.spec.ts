@@ -4,6 +4,7 @@ import { LogsService } from './logs.service';
 import { CreateLogDto } from './dto/create-log.dto';
 import { GetLogsQueryDto } from './dto/get-logs-query.dto';
 import { PaginatedLogsResponseDto } from './dto/paginated-logs-response.dto';
+import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
 describe('LogsController', () => {
   let controller: LogsController;
@@ -11,6 +12,11 @@ describe('LogsController', () => {
   const mockLogsService = {
     create: jest.fn(),
     findAll: jest.fn(),
+  };
+
+  // Mock guard that always allows the request
+  const mockApiKeyGuard = {
+    canActivate: jest.fn().mockReturnValue(true),
   };
 
   beforeEach(async () => {
@@ -22,7 +28,11 @@ describe('LogsController', () => {
           useValue: mockLogsService,
         },
       ],
-    }).compile();
+    })
+      // Here we override the real ApiKeyGuard used by @UseGuards
+      .overrideGuard(ApiKeyGuard)
+      .useValue(mockApiKeyGuard)
+      .compile();
 
     controller = module.get<LogsController>(LogsController);
 

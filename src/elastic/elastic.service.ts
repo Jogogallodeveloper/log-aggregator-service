@@ -47,8 +47,6 @@ export class ElasticService {
   async ensureIndex(): Promise<void> {
     const exists = await this.client.indices.exists({ index: this.indexName });
 
-    // Depending on ES client version, "exists" may be boolean or response object.
-    // Adjust here if necessary.
     if (!exists) {
       this.logger.log(`Creating index: ${this.indexName}`);
 
@@ -83,8 +81,6 @@ export class ElasticService {
     await this.client.indices.refresh({ index: this.indexName });
   }
 
-  // Search logs using filters and pagination
-  // This is the main method that the service/controller will consume
   async searchLogs(params: SearchLogsParams): Promise<{
     data: LogResponseDto[];
     total: number;
@@ -117,6 +113,7 @@ export class ElasticService {
 
     if (startDate || endDate) {
       const range: Record<string, string> = {};
+
       if (startDate) {
         range.gte = startDate;
       }
