@@ -1,4 +1,3 @@
-// src/logs/dto/get-logs-query.dto.ts
 import { IsOptional, IsString, IsDateString, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
