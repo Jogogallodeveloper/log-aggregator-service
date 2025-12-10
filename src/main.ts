@@ -1,4 +1,3 @@
-// src/main.ts
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -6,11 +5,12 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Swagger configuration
   const config = new DocumentBuilder()
     .setTitle('Log Aggregator Service')
-    .setDescription('API for centralized log ingestion and querying')
-    .setVersion('1.0')
+    .setDescription(
+      'Centralized log aggregation service for microservices. Supports ingestion via API and querying with filters + pagination.',
+    )
+    .setVersion('1.0.0')
     .addApiKey(
       {
         type: 'apiKey',
@@ -18,7 +18,7 @@ async function bootstrap() {
         in: 'header',
         description: 'API key required in the "x-api-key" header',
       },
-      'api-key', // Security name used in @ApiSecurity
+      'api-key',
     )
     .build();
 
@@ -27,4 +27,5 @@ async function bootstrap() {
 
   await app.listen(3000);
 }
+
 void bootstrap();
