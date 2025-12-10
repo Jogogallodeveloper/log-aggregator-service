@@ -24,23 +24,42 @@ export class LogsController {
   @Post()
   @ApiOperation({ summary: 'Create a new log entry' })
   @ApiBody({ type: CreateLogDto })
+  @ApiOkResponse({
+    description: 'Log successfully created',
+    type: LogResponseDto,
+  })
   async create(@Body() createLogDto: CreateLogDto): Promise<LogResponseDto> {
     return this.logsService.create(createLogDto);
   }
 
   @Get()
   @ApiOperation({ summary: 'List logs with optional filters and pagination' })
-  @ApiQuery({ name: 'serviceName', required: false })
-  @ApiQuery({ name: 'level', required: false })
-  @ApiQuery({ name: 'startDate', required: false, description: 'ISO date string' })
-  @ApiQuery({ name: 'endDate', required: false, description: 'ISO date string' })
-  @ApiQuery({ name: 'page', required: false, description: 'Page number (default 1)' })
+  @ApiQuery({ name: 'serviceName', required: false, description: 'Filter by service' })
+  @ApiQuery({ name: 'level', required: false, description: 'Filter by log level' })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    description: 'Start date (ISO 8601)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: 'End date (ISO 8601)',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (default 1)',
+  })
   @ApiQuery({
     name: 'pageSize',
     required: false,
     description: 'Items per page (default 20, max 100)',
   })
-  @ApiOkResponse({ type: PaginatedLogsResponseDto })
+  @ApiOkResponse({
+    description: 'Paginated list of logs',
+    type: PaginatedLogsResponseDto,
+  })
   async findAll(@Query() query: GetLogsQueryDto): Promise<PaginatedLogsResponseDto> {
     return this.logsService.findAll(query);
   }

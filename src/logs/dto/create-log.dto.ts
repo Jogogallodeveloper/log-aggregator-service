@@ -1,23 +1,33 @@
-import { IsIn, IsNotEmpty, IsObject, IsOptional, IsString } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateLogDto {
-  @IsString()
-  @IsNotEmpty()
+  @ApiProperty({
+    description: 'Service that generated this log',
+    example: 'auth-service',
+  })
   serviceName: string;
 
-  @IsString()
-  @IsIn(['INFO', 'WARN', 'ERROR', 'DEBUG'])
+  @ApiProperty({
+    description: 'Log level (INFO, WARN, ERROR, DEBUG, etc.)',
+    example: 'ERROR',
+  })
   level: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @ApiProperty({
+    description: 'Human-readable log message',
+    example: 'Login failed for user john.doe',
+  })
   message: string;
 
-  @IsOptional()
-  @IsObject()
-  context?: any;
+  @ApiProperty({
+    description: 'Request correlation ID to trace calls across services',
+    example: 'req-123456',
+  })
+  requestId: string;
 
-  @IsOptional()
-  @IsString()
-  requestId?: string;
+  @ApiProperty({
+    description: 'Additional structured context for debugging and tracing',
+    example: { userId: 42, ip: '192.168.0.10' },
+  })
+  context: Record<string, unknown>;
 }
