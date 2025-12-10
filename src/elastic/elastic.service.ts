@@ -1,9 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Client } from '@elastic/elasticsearch';
+import { Client, errors } from '@elastic/elasticsearch';
 import { LogResponseDto } from '../logs/dto/log-response.dto';
 
-// Parameters used to search logs with filters and pagination
 interface SearchLogsParams {
   serviceName?: string;
   level?: string;
@@ -17,18 +16,24 @@ interface SearchLogsParams {
 export class ElasticService {
   private readonly logger = new Logger(ElasticService.name);
   private readonly client: Client;
-  private readonly indexName: string;
+  private readonly indexAlias: string;
+  private readonly ilmPolicyName: string;
+  private readonly indexTemplateName: string;
 
   constructor(private readonly configService: ConfigService) {
     const node = this.configService.get<string>('ELASTICSEARCH_NODE');
-    const index = this.configService.get<string>('ELASTICSEARCH_INDEX') ?? 'logs';
+    const indexAlias = this.configService.get<string>('ELASTICSEARCH_INDEX') ?? 'logs';
+    const policyName =
+      this.configService.get<string>('ELASTICSEARCH_ILM_POLICY') ?? 'logs-ilm-policy';
 
     if (!node) {
       throw new Error('ELASTICSEARCH_NODE is not defined in environment variables');
     }
 
     this.client = new Client({ node });
-    this.indexName = index;
+    this.indexAlias = indexAlias;
+    this.ilmPolicyName = policyName;
+    this.indexTemplateName = `${this.indexAlias}-template`;
   }
 
   // Simple health check method
@@ -43,15 +48,75 @@ export class ElasticService {
     }
   }
 
-  // Ensure that the index exists with the correct mapping
+  /**
+   * Ensure ILM policy, index template and initial index/alias exist.
+   * This should be called on application startup.
+   */
   async ensureIndex(): Promise<void> {
-    const exists = await this.client.indices.exists({ index: this.indexName });
+    await this.ensureIlmPolicy();
+    await this.ensureIndexTemplate();
+    await this.ensureInitialIndexAndAlias();
+  }
 
-    if (!exists) {
-      this.logger.log(`Creating index: ${this.indexName}`);
+  // Ensure that ILM policy exists
+  private async ensureIlmPolicy(): Promise<void> {
+    try {
+      await this.client.ilm.getLifecycle({ name: this.ilmPolicyName });
+      this.logger.log(`ILM policy already exists: ${this.ilmPolicyName}`);
+    } catch (error) {
+      if (error instanceof errors.ResponseError && error.statusCode === 404) {
+        this.logger.log(`Creating ILM policy: ${this.ilmPolicyName}`);
 
-      await this.client.indices.create({
-        index: this.indexName,
+        await this.client.ilm.putLifecycle({
+          name: this.ilmPolicyName,
+          policy: {
+            phases: {
+              hot: {
+                actions: {
+                  rollover: {
+                    max_age: '7d',
+                    max_size: '50gb',
+                  },
+                },
+              },
+              delete: {
+                min_age: '30d',
+                actions: {
+                  delete: {},
+                },
+              },
+            },
+          },
+        });
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  // Ensure index template for all "logs-*" indices exists
+  private async ensureIndexTemplate(): Promise<void> {
+    const exists = await this.client.indices.existsIndexTemplate({
+      name: this.indexTemplateName,
+    });
+
+    if (exists) {
+      this.logger.log(`Index template already exists: ${this.indexTemplateName}`);
+      return;
+    }
+
+    this.logger.log(`Creating index template: ${this.indexTemplateName}`);
+
+    await this.client.indices.putIndexTemplate({
+      name: this.indexTemplateName,
+      index_patterns: [`${this.indexAlias}-*`],
+      template: {
+        settings: {
+          'index.lifecycle.name': this.ilmPolicyName,
+          'index.lifecycle.rollover_alias': this.indexAlias,
+          number_of_shards: 1,
+          number_of_replicas: 0,
+        },
         mappings: {
           properties: {
             timestamp: { type: 'date' },
@@ -62,25 +127,61 @@ export class ElasticService {
             context: { type: 'object', enabled: true },
           },
         },
-      });
-    } else {
-      this.logger.log(`Index already exists: ${this.indexName}`);
-    }
+      },
+      priority: 500,
+    });
   }
 
-  // Index a single log document in Elasticsearch
+  private async ensureInitialIndexAndAlias(): Promise<void> {
+    // 1) Check if alias already exists
+    const aliasExists = await this.client.indices.existsAlias({
+      name: this.indexAlias,
+    });
+
+    if (aliasExists) {
+      this.logger.log(`Alias already exists: ${this.indexAlias}`);
+      return;
+    }
+
+    const indexWithAliasNameExists = await this.client.indices.exists({
+      index: this.indexAlias,
+    });
+
+    if (indexWithAliasNameExists) {
+      this.logger.warn(
+        `Found an existing index with the same name as the alias: ${this.indexAlias}. ` +
+          'Skipping creation of initial index and alias. ' +
+          'The existing index will be used as the write index. ' +
+          'If you want to use ILM rollover with aliases, consider renaming or reindexing this index.',
+      );
+      return;
+    }
+    const initialIndexName = `${this.indexAlias}-000001`;
+    this.logger.log(`Creating initial index ${initialIndexName} with alias ${this.indexAlias}`);
+
+    await this.client.indices.create({
+      index: initialIndexName,
+      aliases: {
+        [this.indexAlias]: {
+          is_write_index: true,
+        },
+      },
+    });
+  }
+
+  // Index a single log document in Elasticsearch (using alias)
   async indexLog(log: LogResponseDto): Promise<void> {
     this.logger.log(`Indexing log in ES: ${JSON.stringify(log)}`);
+
     await this.client.index({
-      index: this.indexName,
+      index: this.indexAlias, // alias, not physical index
       id: log.id,
       document: log,
     });
-
-    // Refresh index for immediate visibility in dev environment
-    await this.client.indices.refresh({ index: this.indexName });
+    await this.client.indices.refresh({ index: this.indexAlias });
   }
 
+  // Search logs using filters and pagination (via alias)
   async searchLogs(params: SearchLogsParams): Promise<{
     data: LogResponseDto[];
     total: number;
@@ -88,12 +189,9 @@ export class ElasticService {
     pageSize: number;
   }> {
     const { serviceName, level, startDate, endDate, page, pageSize } = params;
-
-    // Calculate "from" for pagination
     const from = (page - 1) * pageSize;
 
-    // Build filter conditions
-    const filter: any[] = [];
+    const filter: object[] = [];
 
     if (serviceName) {
       filter.push({
@@ -115,10 +213,11 @@ export class ElasticService {
       const range: Record<string, string> = {};
 
       if (startDate) {
-        range.gte = startDate;
+        range['gte'] = startDate;
       }
+
       if (endDate) {
-        range.lte = endDate;
+        range['lte'] = endDate;
       }
 
       filter.push({
@@ -128,7 +227,6 @@ export class ElasticService {
       });
     }
 
-    // If there are filters, use bool/filter, otherwise match_all
     const query =
       filter.length > 0
         ? {
@@ -152,7 +250,7 @@ export class ElasticService {
     );
 
     const response = await this.client.search<LogResponseDto>({
-      index: this.indexName,
+      index: this.indexAlias,
       from,
       size: pageSize,
       sort: [{ timestamp: { order: 'desc' } }],
@@ -178,8 +276,7 @@ export class ElasticService {
     };
   }
 
-  // Legacy/simple method kept for backward compatibility
-  // Now it just calls searchLogs with default pagination and no filters
+  // Helper for old "searchAllLogs" usage, now using searchLogs
   async searchAllLogs(): Promise<LogResponseDto[]> {
     const result = await this.searchLogs({
       serviceName: undefined,
