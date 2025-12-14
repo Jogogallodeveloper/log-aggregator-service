@@ -1,20 +1,21 @@
+// src/logs/dto/log-response.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
 
 export class LogResponseDto {
   @ApiProperty({
-    description: 'Unique identifier of the log entry',
-    example: 'a8b0fddf-2284-4b32-8c79-b9e3b8751dc1',
+    description: 'Unique identifier of the log document',
+    example: '23b067a5-779b-4b93-b86f-d847f3a3ff0a',
   })
   id: string;
 
   @ApiProperty({
-    description: 'Timestamp when the log was created (ISO 8601)',
-    example: '2025-12-08T20:24:43.523Z',
+    description: 'Timestamp when the log was created',
+    example: '2025-12-11T18:40:00.000Z',
   })
   timestamp: string;
 
   @ApiProperty({
-    description: 'Service that generated this log',
+    description: 'Service name that produced the log',
     example: 'auth-service',
   })
   serviceName: string;
@@ -26,20 +27,22 @@ export class LogResponseDto {
   level: string;
 
   @ApiProperty({
-    description: 'Human-readable log message',
-    example: 'Login failed for user john.doe',
+    description: 'Human readable log message',
+    example: 'User login failed',
   })
   message: string;
 
   @ApiProperty({
-    description: 'Request correlation ID',
-    example: 'req-123456',
+    description: 'Unique request identifier for tracing',
+    example: 'req-001',
+    required: false,
   })
-  requestId: string;
+  requestId?: string;
 
   @ApiProperty({
-    description: 'Additional structured context information',
-    example: { userId: 42, ip: '192.168.0.10' },
+    description: 'Structured context payload associated with the log',
+    example: { userId: 10, ip: '127.0.0.1' },
+    required: false,
   })
-  context: Record<string, unknown>;
+  context?: Record<string, unknown>;
 }

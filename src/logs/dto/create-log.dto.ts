@@ -1,33 +1,49 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsISO8601, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class CreateLogDto {
   @ApiProperty({
-    description: 'Service that generated this log',
+    description: 'Service name that produced the log',
     example: 'auth-service',
   })
+  @IsString()
   serviceName: string;
 
   @ApiProperty({
-    description: 'Log level (INFO, WARN, ERROR, DEBUG, etc.)',
+    description: 'Log level (severity)',
     example: 'ERROR',
   })
+  @IsString()
   level: string;
 
   @ApiProperty({
-    description: 'Human-readable log message',
-    example: 'Login failed for user john.doe',
+    description: 'Human readable log message',
+    example: 'User login failed',
   })
+  @IsString()
   message: string;
 
-  @ApiProperty({
-    description: 'Request correlation ID to trace calls across services',
-    example: 'req-123456',
+  @ApiPropertyOptional({
+    description: 'Unique request identifier used for tracing',
+    example: 'req-001',
   })
-  requestId: string;
+  @IsOptional()
+  @IsString()
+  requestId?: string;
 
-  @ApiProperty({
-    description: 'Additional structured context for debugging and tracing',
-    example: { userId: 42, ip: '192.168.0.10' },
+  @ApiPropertyOptional({
+    description: 'Optional context object with structured data',
+    example: { userId: 10, ip: '127.0.0.1' },
   })
-  context: Record<string, unknown>;
+  @IsOptional()
+  @IsObject()
+  context?: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    description: 'Optional timestamp in ISO8601 format. If omitted, server will set current time.',
+    example: '2025-12-11T18:40:00.000Z',
+  })
+  @IsOptional()
+  @IsISO8601()
+  timestamp?: string;
 }
