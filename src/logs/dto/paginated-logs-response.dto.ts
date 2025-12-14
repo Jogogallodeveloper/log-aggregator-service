@@ -3,7 +3,19 @@ import { LogResponseDto } from './log-response.dto';
 
 export class PaginatedLogsResponseDto {
   @ApiProperty({
-    description: 'Current page number',
+    description: 'List of logs for the current page',
+    type: [LogResponseDto],
+  })
+  data: LogResponseDto[];
+
+  @ApiProperty({
+    description: 'Total number of logs matching the filters',
+    example: 42,
+  })
+  total: number;
+
+  @ApiProperty({
+    description: 'Current page number (1-based)',
     example: 1,
   })
   page: number;
@@ -13,16 +25,4 @@ export class PaginatedLogsResponseDto {
     example: 20,
   })
   pageSize: number;
-
-  @ApiProperty({
-    description: 'Total number of log entries that match the filters',
-    example: 125,
-  })
-  total: number;
-
-  @ApiProperty({
-    description: 'List of logs for the current page',
-    type: [LogResponseDto],
-  })
-  data: LogResponseDto[];
 }
