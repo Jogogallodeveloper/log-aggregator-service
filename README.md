@@ -1,3 +1,7 @@
+#Status
+
+🚧 In active deployment -  endpoints are being implemented
+
 
 # Log Aggregator Service
 
