@@ -9,6 +9,10 @@ Centralize, aggregate and query logs coming from heterogeneous sources (web serv
 
 ---
 
+![CI] (https://github.com/Jogogallodeveloper/log-aggregator-service/actions/workflows/ci.yml/badge.svg)
+ 
+---
+
 ## 🔧 What this project does
 
 - Collects logs from multiple sources (web server, DB, app) via HTTP/REST (and future adapters like UDP, gRPC, message brokers).
