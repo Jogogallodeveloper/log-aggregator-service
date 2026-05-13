@@ -1,16 +1,11 @@
-#Status
-
-🚧 In active deployment -  endpoints are being implemented
-
-
 # Log Aggregator Service
+
+![CI](https://github.com/Jogogallodeveloper/log-aggregator-service/actions/workflows/ci.yml/badge.svg)
+
+> 🚧 In active development — endpoints are being implemented
 
 Centralize, aggregate and query logs coming from heterogeneous sources (web servers, databases, application instances) so that they are not scattered across machines and systems. This service acts as a central ingestion endpoint and an API-driven query interface, suitable for integration with log forwarders, dashboards and alerting systems.
 
----
-
-![CI] (https://github.com/Jogogallodeveloper/log-aggregator-service/actions/workflows/ci.yml/badge.svg)
- 
 ---
 
 ## 🔧 What this project does
