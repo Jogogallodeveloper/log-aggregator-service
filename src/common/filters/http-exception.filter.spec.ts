@@ -93,4 +93,86 @@ describe('HttpExceptionFilter', () => {
       }),
     );
   });
+
+  it('should handle HttpException with strong body', () => {
+    //ARRANGE
+    const jsonMock = jest.fn();
+    const statusMock = jest.fn().mockReturnValue({ json: jsonMock });
+
+    const host = createHttpArgumentsHost(
+      { url: '/logs', method: 'GET' } as Request,
+      { status: statusMock as unknown as Response['status'] } as Response,
+    );
+
+    const exception = new HttpException('Not Found', HttpStatus.NOT_FOUND);
+
+    //ACT
+    filter.catch(exception, host);
+
+    //ASSERT
+    expect(statusMock).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: HttpStatus.NOT_FOUND,
+        message: 'Not Found',
+      }),
+    );
+  });
+
+  it('should handle HttpException with object body containing only message', () => {
+    //ARRANE
+    const jsonMock = jest.fn();
+    const statusMock = jest.fn().mockReturnValue({ json: jsonMock });
+
+    const host = createHttpArgumentsHost(
+      { url: '/logs', method: 'POST' } as Request,
+      { status: statusMock as unknown as Response['status'] } as Response,
+    );
+
+    const exception = new HttpException({ message: 'Validation Failed' }, HttpStatus.BAD_REQUEST);
+
+    //ACT
+    filter.catch(exception, host);
+
+    //ASSERT
+    expect(statusMock).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: 'Validation Failed',
+      }),
+    );
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const calledWith = jsonMock.mock.calls[0][0] as Record<string, unknown>;
+    expect(calledWith.error).toBeUndefined();
+  });
+
+  it('should handle HttpException with message as array (class-validator)', () => {
+    // ARRANGE
+    const jsonMock = jest.fn();
+    const statusMock = jest.fn().mockReturnValue({ json: jsonMock });
+
+    const host = createHttpArgumentsHost(
+      { url: '/logs', method: 'POST' } as Request,
+      { status: statusMock as unknown as Response['status'] } as Response,
+    );
+
+    const exception = new HttpException(
+      { message: ['field is required', 'field must be a string'], error: 'Bad Request' },
+      HttpStatus.BAD_REQUEST,
+    );
+
+    // ACT
+    filter.catch(exception, host);
+
+    // ASSERT
+    expect(statusMock).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+    expect(jsonMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: HttpStatus.BAD_REQUEST,
+        message: ['field is required', 'field must be a string'],
+        error: 'Bad Request',
+      }),
+    );
+  });
 });

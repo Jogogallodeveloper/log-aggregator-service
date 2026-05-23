@@ -75,12 +75,24 @@ describe('ApiKeyGuard', () => {
   it('should throw for invalid api key', () => {
     const context = createMockExecutionContext({ 'x-api-key': 'wrong-key' });
 
-    expect(() => guard.canActivate(context)).toThrow();
+    expect(() => guard.canActivate(context)).toThrow('Invalid API key');
   });
 
   it('should throw when api key header is missing', () => {
     const context = createMockExecutionContext({});
 
-    expect(() => guard.canActivate(context)).toThrow();
+    expect(() => guard.canActivate(context)).toThrow('API key is missing');
+  });
+
+  it('should throw when API KEY is not configured in env', () => {
+    //ARRANGE - ConfigService returns undefined for API_KEY
+    const emptyConfig: Pick<ConfigService, 'get'> = {
+      get: () => undefined,
+    };
+    const guardWithNoConfig = new ApiKeyGuard(emptyConfig as ConfigService);
+    const context = createMockExecutionContext({ 'x-api-key': 'any-key' });
+
+    //ACT & ASSERT
+    expect(() => guardWithNoConfig.canActivate(context)).toThrow('Invalid API key');
   });
 });
