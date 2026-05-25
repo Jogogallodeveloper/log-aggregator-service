@@ -79,4 +79,49 @@ describe('LogsController', () => {
     expect(mockLogsService.findAll).toHaveBeenCalledWith(query);
     expect(result).toEqual(fakeResponse);
   });
+
+  it('should propagate error when LogsService.create() fails', async () => {
+    // ARRANGE
+    const dto: CreateLogDto = {
+      serviceName: 'auth-service',
+      level: 'ERROR',
+      message: 'Testing',
+      requestId: 'req-123',
+      context: {},
+    };
+
+    mockLogsService.create.mockRejectedValue(new Error('Service unavailable'));
+
+    // ACT & ASSERT
+    await expect(controller.create(dto)).rejects.toThrow('Service unavailable');
+  });
+
+  it('should call LogsService.findAll() with empty query object', async () => {
+    // ARRANGE
+    const query: GetLogsQueryDto = {};
+
+    mockLogsService.findAll.mockResolvedValue({
+      data: [],
+      total: 0,
+      page: 1,
+      pageSize: 20,
+    });
+
+    // ACT
+    await controller.findAll(query);
+
+    // ASSERT
+    expect(mockLogsService.findAll).toHaveBeenCalledTimes(1);
+    expect(mockLogsService.findAll).toHaveBeenCalledWith({});
+  });
+
+  it('should propagate error when LogsService.findAll() fails', async () => {
+    // ARRANGE
+    const query: GetLogsQueryDto = { page: 1, pageSize: 10 };
+
+    mockLogsService.findAll.mockRejectedValue(new Error('Service unavailable'));
+
+    // ACT & ASSERT
+    await expect(controller.findAll(query)).rejects.toThrow('Service unavailable');
+  });
 });
