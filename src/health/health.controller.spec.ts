@@ -46,5 +46,7 @@ describe('HealthController', () => {
 
     expect(result.status).toBe('degraded');
     expect(result.elasticsearch).toBe('down');
+    //verify timestamp is always present and valid ISO 8601
+    expect(result.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
   });
 });
